@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Practice Lab — Build Your Own Prompt</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#0a0e1a;--s1:#131829;--s2:#1a2035;--s3:#222844;
+  --a1:#6c5ce7;--a2:#00cec9;--a3:#fd79a8;--a4:#fdcb6e;--a5:#55efc4;
+  --tx:#e8e8f0;--td:#8892b0;--bd:#2a3050;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);overflow-x:hidden;line-height:1.7}
+
+/* ── NAV ── */
+#nav{position:fixed;top:0;left:0;right:0;z-index:999;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+#nav .logo{font-weight:700;font-size:13px;color:var(--a2);letter-spacing:1.5px;text-transform:uppercase}
+#nav .subtitle{font-size:12px;color:var(--td);display:none}
+
+/* ── MAIN SECTION ── */
+.sl{min-height:100vh;padding:80px 28px 50px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+h2{font-size:clamp(24px,3.5vw,40px);font-weight:700;text-align:center;margin-bottom:8px}
+.sub{font-size:16px;color:var(--td);text-align:center;max-width:660px;margin:8px auto 30px;line-height:1.7}
+h3{font-size:20px;font-weight:600;margin-bottom:8px}
+code,.cd{font-family:'JetBrains Mono',monospace;background:var(--s2);padding:2px 7px;border-radius:5px;font-size:13px;color:var(--a2)}
+
+/* ── SHARED ── */
+.box{background:var(--s1);border:1px solid var(--bd);border-radius:18px;padding:30px;max-width:880px;width:100%;margin:16px auto}
+.btn{padding:11px 26px;border-radius:10px;border:none;font-family:'Inter';font-weight:600;font-size:13px;cursor:pointer;transition:.3s;-webkit-tap-highlight-color:transparent}
+.bp{background:var(--a1);color:#fff}.bp:hover{background:#5a4bd5;transform:translateY(-2px)}
+.bo{background:transparent;color:var(--a2);border:1px solid var(--a2)}.bo:hover{background:rgba(0,206,201,.1)}
+.brow{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+
+/* ── MORPH ANIM ── */
+.morph-in{opacity:1;transform:none}
+
+/* ── TEXTAREA PRACTICE LAB ── */
+.ta-group{margin-bottom:14px;position:relative}
+.ta-header{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.ta-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;flex-shrink:0}
+.ta-title{font-weight:700;font-size:15px;letter-spacing:.5px}
+.ta-arch{font-size:11px;color:var(--td);font-style:italic;margin-left:auto}
+.ta-input{
+  width:100%;min-height:58px;max-height:140px;resize:vertical;
+  background:var(--s2);border:2px solid var(--bd);border-radius:12px;
+  padding:14px 16px;font-family:'Inter',sans-serif;font-size:14px;
+  color:var(--tx);line-height:1.6;outline:none;
+  transition:border-color .4s,box-shadow .4s;
+  -webkit-appearance:none;
+}
+.ta-input::placeholder{color:rgba(136,146,176,.5);font-size:13px}
+.ta-input:focus{border-color:var(--a2);box-shadow:0 0 20px rgba(0,206,201,.1)}
+.ta-input.has-text{border-color:var(--a5);background:rgba(85,239,196,.03)}
+.ta-hint{font-size:11px;color:var(--td);margin-top:4px;padding-left:36px;opacity:.7}
+
+/* ── CONFIDENCE METER ── */
+.pb-meter{height:6px;background:var(--s2);border-radius:3px;overflow:hidden;margin:16px 0 8px}
+.pb-meter-fill{height:100%;border-radius:3px;transition:width .6s ease,background .4s;background:var(--a3)}
+.conf-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--td)}
+
+/* ── LLM SEND BUTTONS ── */
+.llm-btn{transition:all .3s;-webkit-tap-highlight-color:transparent}
+.llm-btn:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,.3)!important}
+.llm-btn:active{transform:translateY(0) scale(.97)}
+#sendToLLM2.unlocked{opacity:1!important;pointer-events:auto!important}
+#sendToLLM2.unlocked{animation:unlockGlow .8s ease}
+@keyframes unlockGlow{0%{box-shadow:none}50%{box-shadow:0 0 30px rgba(0,206,201,.2)}100%{box-shadow:none}}
+
+/* ── FOOTER ── */
+.footer{text-align:center;padding:30px 20px;color:var(--td);font-size:12px;border-top:1px solid var(--bd);margin-top:20px}
+.footer span{color:var(--a1);font-weight:600}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE — TABLET
+   ══════════════════════════════════════════ */
+@media(max-width:768px){
+  .sl{padding:72px 18px 36px}
+  .box{padding:24px 18px}
+  h2{font-size:clamp(20px,5vw,30px)!important}
+  .sub{font-size:15px;margin:6px auto 24px}
+  .ta-arch{margin-left:0;margin-top:2px;display:block;width:100%}
+  .ta-hint{padding-left:0}
+  #nav .subtitle{display:inline}
+}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE — MOBILE
+   ══════════════════════════════════════════ */
+@media(max-width:520px){
+  .sl{padding:66px 12px 30px}
+  .box{padding:18px 12px;border-radius:14px}
+  h2{font-size:22px!important}
+  .sub{font-size:13px;line-height:1.6;margin:6px auto 18px}
+  h3{font-size:16px}
+
+  /* Nav */
+  #nav{padding:10px 16px}
+  #nav .logo{font-size:11px;letter-spacing:1px}
+
+  /* Textareas — bigger touch targets */
+  .ta-group{margin-bottom:12px}
+  .ta-header{gap:8px}
+  .ta-num{width:24px;height:24px;font-size:12px}
+  .ta-title{font-size:14px}
+  .ta-arch{font-size:10px;margin-left:0;margin-top:2px;display:block;width:100%}
+  .ta-input{
+    min-height:52px;max-height:160px;
+    padding:12px 14px;font-size:14px;
+    border-radius:10px;
+  }
+  .ta-input::placeholder{font-size:12px}
+  .ta-hint{padding-left:0;font-size:10px}
+
+  /* Meter */
+  .conf-labels{font-size:10px;flex-wrap:wrap;gap:4px}
+  .conf-labels span{flex:1;min-width:120px}
+
+  /* Preview */
+  #taPreview{font-size:11px;padding:12px 14px;max-height:140px;border-radius:10px;line-height:1.7}
+  #taTokenEst{font-size:10px}
+
+  /* Buttons — full width stacked */
+  .btn{padding:12px 18px;font-size:13px;width:100%;text-align:center;border-radius:10px}
+  .brow{flex-direction:column;gap:8px;align-items:stretch}
+
+  /* LLM buttons — full width stacked */
+  .llm-btn-wrap{display:flex;flex-direction:column;gap:8px;width:100%}
+  .llm-btn{
+    width:100%!important;
+    justify-content:center!important;
+    padding:14px 18px!important;
+    font-size:14px!important;
+    border-radius:12px!important;
+    min-height:48px;
+  }
+
+  /* Send section */
+  #sendToLLM2{padding-top:16px}
+  #sendToLLM2 h3{font-size:14px}
+
+  /* Score */
+  #taScore{font-size:12px}
+
+  /* Footer */
+  .footer{padding:20px 14px;font-size:11px}
+}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE — EXTRA SMALL (iPhone SE etc.)
+   ══════════════════════════════════════════ */
+@media(max-width:380px){
+  .sl{padding:62px 8px 24px}
+  .box{padding:14px 10px;border-radius:12px}
+  h2{font-size:19px!important}
+  .sub{font-size:12px}
+  .ta-input{padding:10px 12px;font-size:13px}
+  .ta-title{font-size:13px}
+  .llm-btn{padding:12px 14px!important;font-size:13px!important}
+  #nav .logo{font-size:10px}
+  .conf-labels{font-size:9px}
+}
+
+/* ── SAFE AREA (notched phones) ── */
+@supports(padding-bottom: env(safe-area-inset-bottom)){
+  .footer{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="logo">Practice Lab <span class="subtitle">— R.C.I.S.F Prompt Builder</span></div>
+</nav>
+
+<!-- ============================================ -->
+<!-- PRACTICE LAB — YOUR OWN PROMPT -->
+<!-- ============================================ -->
+<section class="sl" id="s5b">
+  <h2 class="morph-in">Practice Lab: Build Your Own Prompt</h2>
+  <p class="sub morph-in">Now it is your turn. Type your own Role, Context, Intent, Specification, and Format below. Watch the confidence meter and assembled prompt update in real time — then send it straight to any LLM.</p>
+
+  <div class="box morph-in">
+    <!-- TEXTAREA 1: ROLE -->
+    <div class="ta-group">
+      <div class="ta-header">
+        <span class="ta-num" style="background:var(--a3)">1</span>
+        <span class="ta-title">ROLE</span>
+        <span class="ta-arch">BIOS / Firmware — "What machine am I?"</span>
+      </div>
+      <textarea id="ta0" class="ta-input" placeholder="e.g. Act as a senior data scientist specializing in machine learning..." oninput="onTaInput()"></textarea>
+      <div class="ta-hint">Set the identity and expertise level. This load first into the KV Cache and anchor everything.</div>
+    </div>
+
+    <!-- TEXTAREA 2: CONTEXT -->
+    <div class="ta-group">
+      <div class="ta-header">
+        <span class="ta-num" style="background:var(--a4)">2</span>
+        <span class="ta-title">CONTEXT</span>
+        <span class="ta-arch">OS / Environment — "What is the situation?"</span>
+      </div>
+      <textarea id="ta1" class="ta-input" placeholder="e.g. I am preparing a presentation for non-technical executives who need to approve our AI budget..." oninput="onTaInput()"></textarea>
+      <div class="ta-hint">Who is the audience? What is the situation? Why are you asking?</div>
+    </div>
+
+    <!-- TEXTAREA 3: INTENT -->
+    <div class="ta-group">
+      <div class="ta-header">
+        <span class="ta-num" style="background:var(--a2)">3</span>
+        <span class="ta-title">INTENT</span>
+        <span class="ta-arch">Opcode / Instruction — "What action to perform?"</span>
+      </div>
+      <textarea id="ta2" class="ta-input" placeholder="e.g. Create a 10-slide executive summary..." oninput="onTaInput()"></textarea>
+      <div class="ta-hint">The command verb: Write, Summarize, Compare, Analyze, Create, Explain...</div>
+    </div>
+
+    <!-- TEXTAREA 4: SPECIFICATION -->
+    <div class="ta-group">
+      <div class="ta-header">
+        <span class="ta-num" style="background:var(--a5)">4</span>
+        <span class="ta-title">SPECIFICATION</span>
+        <span class="ta-arch">Operands / Data — "What data and constraints?"</span>
+      </div>
+      <textarea id="ta3" class="ta-input" placeholder="e.g. covering ROI projections, risk analysis, and comparison with 3 competitor approaches. Limit scope to Q1-Q2 2026 data..." oninput="onTaInput()"></textarea>
+      <div class="ta-hint">The boundaries, data scope, number limits, and constraints.</div>
+    </div>
+
+    <!-- TEXTAREA 5: FORMAT -->
+    <div class="ta-group">
+      <div class="ta-header">
+        <span class="ta-num" style="background:var(--a1)">5</span>
+        <span class="ta-title">FORMAT</span>
+        <span class="ta-arch">Output Config / Display — "How to present it?"</span>
+      </div>
+      <textarea id="ta4" class="ta-input" placeholder="e.g. Use a professional but accessible tone. Include charts where possible. End each slide with a key takeaway bullet point..." oninput="onTaInput()"></textarea>
+      <div class="ta-hint">Tone, structure, length, visual elements, ending style.</div>
+    </div>
+
+    <!-- LIVE CONFIDENCE METER -->
+    <div style="margin-top:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--td)">Prompt Completeness</span>
+        <span id="taScore" style="font-family:'JetBrains Mono';font-size:13px;color:var(--a4)">0 / 5 fields</span>
+      </div>
+      <div class="pb-meter"><div class="pb-meter-fill" id="taFill" style="width:0%"></div></div>
+      <div class="conf-labels"><span>Model will guess everything</span><span>Full boot sequence loaded</span></div>
+    </div>
+
+    <!-- LIVE ASSEMBLED PROMPT PREVIEW -->
+    <div style="margin-top:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <h3 style="color:var(--a2);font-size:15px;margin:0">Live Preview: Your Assembled Prompt</h3>
+        <span id="taTokenEst" style="font-family:'JetBrains Mono';font-size:11px;color:var(--td)">~0 tokens</span>
+      </div>
+      <div id="taPreview" style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--td);max-height:200px;overflow-y:auto;white-space:pre-wrap;min-height:60px;transition:border-color .3s">Your prompt will appear here as you type...</div>
+    </div>
+
+    <!-- SEND TO LLM BUTTONS -->
+    <div id="sendToLLM2" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--bd);opacity:0.3;pointer-events:none;transition:all .5s">
+      <h3 style="text-align:center;color:var(--a2);font-size:15px;margin-bottom:12px">Send Your Prompt to an LLM</h3>
+      <div class="llm-btn-wrap" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn llm-btn" onclick="sendCustom('chatgpt')" style="background:#10a37f;color:#fff;display:flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:none;font-weight:600;font-size:14px;cursor:pointer;transition:all .3s">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z" fill="white"/></svg>
+          ChatGPT
+        </button>
+        <button class="btn llm-btn" onclick="sendCustom('claude')" style="background:#d97706;color:#fff;display:flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:none;font-weight:600;font-size:14px;cursor:pointer;transition:all .3s">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12l2.5 2.5L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Claude
+        </button>
+        <button class="btn llm-btn" onclick="sendCustom('gemini')" style="background:linear-gradient(135deg,#4285f4,#ea4335,#fbbc04,#34a853);color:#fff;display:flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:none;font-weight:600;font-size:14px;cursor:pointer;transition:all .3s">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 19.5h20L12 2z" fill="white" opacity="0.9"/></svg>
+          Gemini
+        </button>
+        <button class="btn llm-btn" id="copyCustomBtn" onclick="copyCustom()" style="background:var(--s3);color:var(--a2);display:flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:1px solid var(--a2);font-weight:600;font-size:14px;cursor:pointer;transition:all .3s">
+          Copy Prompt
+        </button>
+      </div>
+      <p id="sendStatus2" style="text-align:center;margin-top:10px;font-size:12px;color:var(--td);min-height:18px"></p>
+    </div>
+  </div>
+</section>
+
+<div class="footer">
+  Practice Lab — R.C.I.S.F Prompt Builder<br>
+  <span>The AI Architecture</span> — Analogous to Computer Architecture | Spring 2026
+</div>
+
+<!-- ============================================ -->
+<!-- SCRIPTS -->
+<!-- ============================================ -->
+<script>
+// ── MORPH-IN ON SCROLL ──
+// All content visible immediately — no scroll animation needed for single-page mobile
+document.querySelectorAll('.morph-in').forEach(el=>el.classList.add('v'));
+
+// ── PRACTICE LAB TEXTAREAS ──
+const taLabels=['ROLE','CONTEXT','INTENT','SPECIFICATION','FORMAT'];
+
+function onTaInput(){
+  let filledCount=0;
+  const parts=[];
+  for(let i=0;i<5;i++){
+    const el=document.getElementById('ta'+i);
+    const val=el.value.trim();
+    if(val.length>0){
+      filledCount++;
+      el.classList.add('has-text');
+      parts.push('['+ taLabels[i] +']\n'+val);
+    }else{
+      el.classList.remove('has-text');
+    }
+  }
+  // Update score
+  document.getElementById('taScore').textContent=filledCount+' / 5 fields';
+  // Update meter
+  const pct=filledCount/5*100;
+  const fill=document.getElementById('taFill');
+  fill.style.width=pct+'%';
+  fill.style.background=pct<40?'var(--a3)':pct<80?'var(--a4)':'var(--a5)';
+  // Update preview
+  const preview=document.getElementById('taPreview');
+  if(parts.length>0){
+    preview.textContent=parts.join('\n\n')+'\n\nStay grounded and it is ok to say I do not know';
+    preview.style.color='var(--tx)';
+    preview.style.borderColor='var(--a2)';
+  }else{
+    preview.textContent='Your prompt will appear here as you type...';
+    preview.style.color='var(--td)';
+    preview.style.borderColor='var(--bd)';
+  }
+  // Token estimate
+  const allText=parts.join(' ');
+  const wordCount=allText.split(/\s+/).filter(Boolean).length;
+  const tokenEst=Math.round(wordCount*1.3);
+  document.getElementById('taTokenEst').textContent='~'+tokenEst+' tokens';
+  // Unlock send buttons when at least 3 fields filled
+  const sendPanel=document.getElementById('sendToLLM2');
+  if(filledCount>=3){sendPanel.classList.add('unlocked')}
+  else{sendPanel.classList.remove('unlocked')}
+}
+
+function getCustomPrompt(){
+  const parts=[];
+  for(let i=0;i<5;i++){
+    const val=document.getElementById('ta'+i).value.trim();
+    if(val)parts.push(val);
+  }
+  if(parts.length>0){
+    parts.push('Stay grounded and it is ok to say I do not know');
+  }
+  return parts.join('\n\n');
+}
+
+// ── COPY TO CLIPBOARD (works on file:// and http://) ──
+function copyToClipboard(text){
+  if(navigator.clipboard && window.isSecureContext){
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject)=>{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok ? resolve() : reject();
+    } catch(e){
+      document.body.removeChild(ta);
+      reject(e);
+    }
+  });
+}
+
+// ── UNIVERSAL SEND FUNCTION ──
+function universalSend(platform, prompt, statusEl, btnEl){
+  if(!prompt||!prompt.trim()){
+    statusEl.textContent='Nothing to send — type your prompt first!';
+    statusEl.style.color='var(--a3)';
+    return;
+  }
+  const isMac = navigator.userAgent.indexOf('Mac') !== -1;
+  const pasteKey = isMac ? 'Cmd+V' : 'Ctrl+V';
+  const names  = { chatgpt:'ChatGPT', claude:'Claude', gemini:'Gemini' };
+  const colors = { chatgpt:'#10a37f', claude:'#d97706', gemini:'#4285f4' };
+  const name  = names[platform];
+  const color = colors[platform];
+
+  if(platform==='claude'){
+    var url='https://claude.ai/new?q='+encodeURIComponent(prompt);
+    copyToClipboard(prompt);
+    window.open(url,'_blank');
+    statusEl.innerHTML='<strong>'+name+'</strong> opened with your prompt! Also copied to clipboard.';
+    statusEl.style.color=color;
+  } else if(platform==='chatgpt'){
+    var url='https://chatgpt.com/?q='+encodeURIComponent(prompt);
+    copyToClipboard(prompt);
+    window.open(url,'_blank');
+    statusEl.innerHTML='<strong>'+name+'</strong> opened with your prompt! Also copied to clipboard.';
+    statusEl.style.color=color;
+  } else if(platform==='gemini'){
+    copyToClipboard(prompt).then(function(){
+      if(btnEl){
+        var originalHTML=btnEl.innerHTML;
+        btnEl.innerHTML='Copied! Now Paste ('+pasteKey+')';
+        btnEl.style.background='var(--a5)';btnEl.style.color='#000';
+        setTimeout(function(){btnEl.innerHTML=originalHTML;btnEl.style.background='';btnEl.style.color='';},3000);
+      }
+      window.open('https://gemini.google.com/app','_blank');
+      statusEl.innerHTML='Prompt copied! <strong>Gemini</strong> opened — press <kbd style="background:var(--s3);padding:2px 6px;border-radius:4px">'+pasteKey+'</kbd> to paste.';
+      statusEl.style.color=color;
+    }).catch(function(){
+      var t=document.createElement('textarea');t.value=prompt;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);
+      window.open('https://gemini.google.com/app','_blank');
+      statusEl.innerHTML='Prompt copied! <strong>Gemini</strong> opened — press <kbd style="background:var(--s3);padding:2px 6px;border-radius:4px">'+pasteKey+'</kbd> to paste.';
+      statusEl.style.color=color;
+    });
+    return;
+  }
+  if(btnEl){btnEl.style.transform='scale(0.93)';setTimeout(()=>{btnEl.style.transform=''},250)}
+}
+
+function sendCustom(platform){
+  const btn=event.target.closest('.llm-btn');
+  universalSend(platform, getCustomPrompt(), document.getElementById('sendStatus2'), btn);
+}
+
+function copyCustom(){
+  const prompt=getCustomPrompt();
+  if(!prompt){document.getElementById('sendStatus2').textContent='Type something first!';document.getElementById('sendStatus2').style.color='var(--a3)';return}
+  copyToClipboard(prompt).then(()=>{
+    const btn=document.getElementById('copyCustomBtn');
+    btn.innerHTML='Copied!';btn.style.borderColor='var(--a5)';btn.style.color='var(--a5)';
+    document.getElementById('sendStatus2').textContent='Prompt copied to clipboard! Paste it into any LLM.';
+    document.getElementById('sendStatus2').style.color='var(--a5)';
+    setTimeout(()=>{btn.innerHTML='Copy Prompt';btn.style.borderColor='var(--a2)';btn.style.color='var(--a2)'},2500);
+  });
+}
+
+// ── AUTO-RESIZE TEXTAREAS ON MOBILE ──
+document.querySelectorAll('.ta-input').forEach(ta=>{
+  ta.addEventListener('input',function(){
+    this.style.height='auto';
+    this.style.height=Math.min(this.scrollHeight,200)+'px';
+  });
+});
+
+// ── PREVENT iOS ZOOM ON INPUT FOCUS ──
+// Already handled by font-size >= 16px on mobile and viewport meta
+</script>
+</body>
+</html>
