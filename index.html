@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Instruction Builder</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#1a2744;--surface:#223259;--surface2:#2a3d6e;--surface3:#334880;
+  --border:#4060a0;--border2:#5578c0;
+  --text-primary:#ffffff;--text-secondary:#d8eaff;--text-muted:#a0c0f0;--text-faint:#6080b8;
+  --accent:#ffc040;--accent2:#60b8ff;--accent-glow:rgba(255,192,64,0.25);--blue-glow:rgba(96,184,255,0.2);
+  --green:#60ffcc;--green-dim:rgba(96,255,204,0.15);
+  --purple:#e8aaff;--purple-dim:rgba(232,170,255,0.15);
+  --teal:#80eeff;--yellow:#ffe878;--orange:#ffd090;
+  --red:#ff7070;
+  --radius:10px;--radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:-apple-system,'SF Pro Display','Segoe UI',sans-serif;background:var(--bg);color:var(--text-primary);-webkit-font-smoothing:antialiased;font-size:14px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px;}
+
+.app{display:flex;flex-direction:column;height:100vh;}
+
+/* Copyright bar */
+.copyright-bar{background:#0f1a2e;border-bottom:1px solid var(--border);padding:4px 20px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
+.copyright-bar span{font-size:11px;color:var(--text-muted);}
+
+/* Topbar */
+.topbar{background:rgba(26,39,68,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:relative;z-index:10;}
+.app-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0066cc,#0044aa);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,102,204,0.45);}
+.app-icon i{font-size:15px;color:#fff;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.topbar-title{font-size:15px;font-weight:700;color:var(--text-primary);letter-spacing:-0.3px;}
+.topbar-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.badge{font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;background:rgba(255,192,64,0.15);color:var(--accent);border:1px solid rgba(255,192,64,0.35);border-radius:20px;padding:3px 10px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.progress-pill{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;}
+.progress-pill span{font-size:11px;font-weight:600;color:var(--text-secondary);}
+.mobile-toggle{display:none;background:var(--surface2);border:1px solid var(--border);color:var(--teal);border-radius:var(--radius-sm);padding:6px 11px;font-size:11px;font-weight:600;cursor:pointer;}
+
+/* Main */
+.main{display:flex;flex:1;overflow:hidden;}
+.form-panel{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+
+/* Field card */
+.field-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;transition:border-color 0.2s,box-shadow 0.2s;box-shadow:0 2px 12px rgba(0,0,0,0.25),0 0 20px rgba(96,184,255,0.05);}
+.field-card:focus-within{border-color:var(--accent2);box-shadow:0 0 0 1px rgba(96,184,255,0.35),0 4px 20px rgba(0,0,0,0.35);}
+.field-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:12px;background:linear-gradient(180deg,var(--surface3),var(--surface2));border-bottom:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;}
+.field-label-wrap{display:flex;align-items:center;gap:12px;min-width:0;}
+.field-icon-wrap{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--surface3),var(--bg));border:1px solid var(--border2);box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.field-icon-wrap i{font-size:17px;color:var(--accent);}
+.field-label{font-size:13px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.field-hint{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.req-badge{font-size:10px;color:var(--red);font-weight:700;}
+.opt-badge{font-size:10px;color:var(--text-faint);}
+
+textarea{width:100%;background:var(--surface);border:none;border-top:1px solid var(--border);outline:none;color:var(--text-primary);font-size:16px;line-height:1.8;padding:14px 16px;resize:vertical;min-height:74px;max-height:320px;font-family:-apple-system,'SF Pro Text','Segoe UI',sans-serif;caret-color:var(--accent);display:block;border-radius:0 0 var(--radius) var(--radius);}
+textarea::placeholder{color:var(--text-faint);font-size:14px;}
+
+/* Launchers */
+.launchers{display:flex;gap:10px;}
+.launch-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;transition:all 0.18s;box-shadow:0 2px 10px rgba(0,0,0,0.3);}
+.launch-btn:hover{background:var(--surface3);border-color:var(--accent);color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.4);}
+.launch-btn:active{transform:translateY(0);}
+.launch-btn img{width:20px;height:20px;border-radius:4px;object-fit:contain;}
+
+/* Output */
+.output-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.25);}
+.output-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(180deg,var(--surface3),var(--surface2));border-bottom:1px solid var(--border);}
+.output-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--yellow);}
+.copy-btn{display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#0055cc,#0044aa);color:#fff;border:none;border-radius:var(--radius-sm);padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 8px rgba(0,68,170,0.4);}
+.copy-btn:hover{background:linear-gradient(135deg,#0066dd,#0055bb);}
+.copy-btn.done{background:linear-gradient(135deg,#065f46,#047857);}
+.output-pre{padding:14px;font-size:12px;line-height:1.75;font-family:'Cascadia Code','Fira Code','SF Mono','Courier New',monospace;white-space:pre-wrap;word-break:break-word;max-height:150px;overflow-y:auto;color:var(--orange);}
+.output-pre.empty{color:var(--text-faint);font-family:-apple-system,sans-serif;font-style:italic;font-size:12px;}
+
+/* AI panel */
+.ai-panel{width:310px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;}
+.ai-header{background:linear-gradient(180deg,var(--surface3),var(--surface2));border-bottom:1px solid var(--border);padding:12px 14px;flex-shrink:0;}
+.ai-header-row{display:flex;align-items:center;justify-content:space-between;}
+.ai-icon-wrap{width:34px;height:34px;border-radius:9px;background:rgba(232,170,255,0.15);border:1px solid rgba(232,170,255,0.28);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ai-icon-wrap i{font-size:15px;color:var(--purple);}
+.ai-title{font-size:13px;font-weight:700;color:var(--purple);}
+.ai-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.close-btn{background:none;border:none;color:var(--text-muted);font-size:15px;cursor:pointer;padding:4px;border-radius:4px;}
+.close-btn:hover{color:var(--text-secondary);}
+.ai-tabs{display:flex;gap:5px;margin-top:12px;}
+.ai-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.ai-tab.active{background:var(--purple-dim);border-color:rgba(232,170,255,0.38);color:var(--purple);}
+.ai-tab:hover:not(.active){background:var(--surface3);color:var(--text-secondary);}
+.ai-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px 12px;}
+.empty-icon{width:52px;height:52px;border-radius:14px;margin-bottom:12px;background:rgba(232,170,255,0.12);border:1px solid rgba(232,170,255,0.2);display:flex;align-items:center;justify-content:center;}
+.empty-icon i{font-size:22px;color:var(--purple);}
+.empty-state h4{font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:5px;}
+.empty-state p{font-size:12px;color:var(--text-muted);line-height:1.6;}
+.quick-prompts{display:flex;flex-direction:column;gap:5px;margin-top:14px;width:100%;}
+.qp{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;text-align:left;transition:all 0.15s;line-height:1.4;display:flex;align-items:flex-start;gap:7px;}
+.qp i{color:var(--accent2);flex-shrink:0;margin-top:1px;font-size:10px;}
+.qp:hover{border-color:var(--accent2);color:var(--teal);background:var(--blue-glow);}
+.msg-wrap{display:flex;}
+.msg-wrap.user{justify-content:flex-end;}
+.msg-wrap.ai{justify-content:flex-start;}
+.msg{max-width:88%;font-size:12px;line-height:1.65;padding:9px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-word;}
+.msg.user{background:linear-gradient(135deg,#0055cc,#0044aa);color:#e8f4ff;border-radius:10px 2px 10px 10px;}
+.msg.ai{background:var(--surface2);color:var(--text-secondary);border:1px solid var(--border);border-radius:2px 10px 10px 10px;}
+.typing{display:flex;gap:4px;align-items:center;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:2px 10px 10px 10px;width:fit-content;}
+.dot{width:5px;height:5px;background:var(--text-muted);border-radius:50%;animation:blink 1.2s infinite;}
+.dot:nth-child(2){animation-delay:.2s;}.dot:nth-child(3){animation-delay:.4s;}
+@keyframes blink{0%,80%,100%{opacity:.2;transform:scale(.65);}40%{opacity:1;transform:scale(1);}}
+.apply-btn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--green-dim);color:var(--green);border:1px solid rgba(96,255,204,0.28);border-radius:var(--radius-sm);padding:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;flex-shrink:0;}
+.apply-btn:hover{background:rgba(96,255,204,0.2);}
+.ai-input-area{border-top:1px solid var(--border);padding:10px;background:var(--surface2);flex-shrink:0;}
+.ai-input-row{display:flex;gap:6px;}
+.ai-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;color:var(--text-primary);font-size:13px;outline:none;font-family:inherit;resize:none;min-height:36px;max-height:80px;line-height:1.5;caret-color:var(--accent);}
+.ai-input:focus{border-color:var(--border2);}
+.ai-input::placeholder{color:var(--text-faint);}
+.send-btn{background:linear-gradient(135deg,#0055cc,#0044aa);color:#fff;border:none;border-radius:var(--radius-sm);padding:0 16px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;flex-shrink:0;}
+.send-btn:hover{background:linear-gradient(135deg,#0066dd,#0055bb);}
+.send-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.review-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--purple-dim);color:var(--purple);border:1px solid rgba(232,170,255,0.32);border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%;transition:all 0.15s;flex-shrink:0;}
+.review-btn:hover{background:rgba(232,170,255,0.15);}
+.review-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.review-text{font-size:12px;line-height:1.75;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word;}
+
+/* Bottom bar */
+.bottombar{background:linear-gradient(180deg,var(--surface2),var(--surface));border-top:1px solid var(--border);padding:9px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.ethics-trigger{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 16px;color:var(--green);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+.ethics-trigger:hover{border-color:var(--green);background:var(--green-dim);}
+.ethics-trigger .score{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--text-muted);}
+.ethics-trigger .score.full{background:var(--green-dim);border-color:rgba(96,255,204,0.4);color:var(--green);}
+.bottombar-hint{font-size:12px;color:var(--text-faint);}
+
+/* Ethics Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn 0.18s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal{background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:24px 26px 26px;width:100%;max-width:540px;animation:scaleIn 0.2s ease;box-shadow:0 24px 60px rgba(0,0,0,0.65),0 0 0 1px rgba(255,255,255,0.05);}
+@keyframes scaleIn{from{transform:scale(0.94);opacity:0;}to{transform:scale(1);opacity:1;}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.modal-title{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700;color:var(--text-primary);}
+.modal-title i{color:var(--green);font-size:17px;}
+.modal-close{background:var(--surface3);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:6px;}
+.modal-close:hover{color:var(--text-primary);border-color:var(--border2);}
+.ethics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media(max-width:500px){.ethics-grid{grid-template-columns:repeat(2,1fr);}}
+.ethics-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all 0.18s;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
+.ethics-item:hover{border-color:var(--border2);background:var(--surface3);}
+.ethics-item.done{background:var(--green-dim);border-color:rgba(96,255,204,0.4);}
+.ethics-item-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border2);transition:all 0.18s;}
+.ethics-item.done .ethics-item-icon{background:rgba(96,255,204,0.15);border-color:rgba(96,255,204,0.35);}
+.ethics-item-icon i{font-size:16px;color:var(--text-muted);}
+.ethics-item.done .ethics-item-icon i{color:var(--green);}
+.ethics-item-label{font-size:12px;font-weight:600;color:var(--text-secondary);}
+.ethics-item.done .ethics-item-label{color:var(--green);}
+.ethics-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;transition:all 0.18s;}
+.ethics-item.done .ethics-check{background:var(--green);border-color:var(--green);}
+.modal-progress{margin-top:18px;display:flex;align-items:center;gap:12px;}
+.modal-progress-bar{flex:1;height:6px;background:var(--surface);border-radius:3px;overflow:hidden;}
+.modal-progress-fill{height:100%;border-radius:3px;background:var(--green);transition:width 0.3s ease;}
+.modal-progress-label{font-size:12px;font-weight:700;color:var(--text-muted);white-space:nowrap;}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a3a2a;border:1px solid var(--green);color:var(--green);border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,0.5);white-space:nowrap;pointer-events:none;animation:fadeInUp 0.2s ease;}
+@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+
+@media(max-width:700px){
+  .ai-panel{display:none;position:fixed;top:0;right:0;bottom:0;width:88vw;max-width:320px;z-index:99;box-shadow:-8px 0 32px rgba(0,0,0,0.7);}
+  .ai-panel.open{display:flex;}
+  .mobile-toggle{display:flex!important;}
+  .launchers{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const FIELDS=[
+  {key:"role",     fa:"fa-solid fa-user-tie",       label:"Role & Persona",      hint:"What expert identity should the AI take on?",          ph:"e.g. a senior software architect with deep cloud expertise…",              required:true},
+  {key:"audience", fa:"fa-solid fa-users",           label:"Audience",             hint:"Who will be reading the AI's responses?",              ph:"e.g. technical teams new to this system, or non-technical stakeholders…",  required:true},
+  {key:"context",  fa:"fa-solid fa-clipboard-list",  label:"Context & Background", hint:"What background does the AI need to know?",            ph:"e.g. This is a support bot for an online bookstore handling orders…",      required:true},
+  {key:"task",     fa:"fa-solid fa-bullseye",         label:"Task",                 hint:"What exactly should the AI accomplish?",               ph:"e.g. Help users find books by asking about preferences, give 3 recs…",     required:true},
+  {key:"rules",    fa:"fa-solid fa-scale-balanced",   label:"Rules & Constraints",  hint:"What must it always / never do?",                     ph:"e.g. Always be polite. Never give legal advice. If unsure, say so…",      required:false},
+  {key:"format",   fa:"fa-solid fa-ruler-combined",   label:"Output Format",        hint:"How should responses be structured?",                 ph:"e.g. Short paragraphs, max 150 words, bullet points only for lists…",     required:false},
+  {key:"examples", fa:"fa-solid fa-lightbulb",        label:"Examples",             hint:"Show a good vs. bad response pair.",                  ph:"Good: 'Based on your love of mystery…'\nBad: 'Here are 50 books…'",      required:false},
+];
+
+const ETHICS=[
+  {id:"transparency", fa:"fa-solid fa-eye",             label:"Transparent"},
+  {id:"bias",         fa:"fa-solid fa-equals",           label:"Unbiased"},
+  {id:"harm",         fa:"fa-solid fa-shield-halved",    label:"No Harm"},
+  {id:"privacy",      fa:"fa-solid fa-lock",             label:"Private"},
+  {id:"uncertainty",  fa:"fa-solid fa-circle-question",  label:"Handles Unknowns"},
+  {id:"scope",        fa:"fa-solid fa-compress",         label:"Focused"},
+];
+
+const QUICK=[
+  "Help me write the Role for a Nepal parliament AI literacy tool",
+  "What safety rules should I include?",
+  "Suggest a good output format for technical users",
+  "Review my instruction and suggest improvements",
+];
+
+const AI_CLIENTS=[
+  {id:"claude",  label:"Claude",  url:"https://claude.ai/new",         icon:"https://www.anthropic.com/favicon.ico"},
+  {id:"chatgpt", label:"ChatGPT", url:"https://chatgpt.com/",          icon:"https://cdn.oaistatic.com/assets/favicon-o20kmmos.svg"},
+  {id:"gemini",  label:"Gemini",  url:"https://gemini.google.com/app", icon:"https://www.gstatic.com/lamda/images/gemini_favicon_f069958c85030456e93de685481c559f160ea06.svg"},
+];
+
+const MODEL="claude-sonnet-4-20250514";
+
+async function callClaude(messages,system){
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:MODEL,max_tokens:1000,system,messages})});
+  if(!r.ok)throw new Error("API error "+r.status);
+  const d=await r.json();
+  return d.content?.map(b=>b.text||"").join("")||"";
+}
+
+function buildOutput(f){
+  let o="";
+  if(f.role)     o+="You are "+f.role+".\n\n";
+  if(f.audience) o+="Your audience is: "+f.audience+".\n\n";
+  if(f.context)  o+="## Context\n"+f.context+"\n\n";
+  if(f.task)     o+="## Your Task\n"+f.task+"\n\n";
+  if(f.rules)    o+="## Rules & Constraints\n"+f.rules+"\n\n";
+  if(f.format)   o+="## Output Format\n"+f.format+"\n\n";
+  if(f.examples) o+="## Examples\n"+f.examples+"\n\n";
+  return o.trim();
+}
+
+var S={
+  fields:{role:"",audience:"",context:"",task:"",rules:"",format:"",examples:""},
+  ethics:{},chat:[],mode:"chat",input:"",
+  busy:false,review:"",reviewing:false,copied:false,aiOpen:false,ethicsOpen:false,
+};
+
+function set(patch){S=Object.assign({},S,patch);draw();}
+
+function sys(){
+  var ctx=FIELDS.filter(function(f){return S.fields[f.key];}).map(function(f){return f.label+": "+S.fields[f.key];}).join("\n");
+  return "You are an expert AI prompt engineer helping build a system instruction.\n"+(ctx?"Draft so far:\n"+ctx:"No fields filled yet.")+"\nBe concise and practical. When drafting field content, return only the content, ready to paste.";
+}
+
+async function sendChat(txt){
+  var msg=(txt||S.input).trim();
+  if(!msg)return;
+  var hist=S.chat.concat([{role:"user",content:msg}]);
+  set({chat:hist,input:"",busy:true});
+  try{
+    var r=await callClaude(hist,sys());
+    set({chat:S.chat.concat([{role:"assistant",content:r}]),busy:false});
+  }catch(e){
+    set({chat:S.chat.concat([{role:"assistant",content:"⚠️ "+e.message}]),busy:false});
+  }
+}
+
+async function doReview(){
+  set({reviewing:true,review:""});
+  try{
+    var out=buildOutput(S.fields);
+    if(!out){set({reviewing:false,review:"⚠️ Fill in some fields first."});return;}
+    var r=await callClaude(
+      [{role:"user",content:"Review this system instruction:\n\n"+out+"\n\nProvide:\n✅ Strengths (2-3 bullets)\n⚠️ Gaps or risks (2-3 bullets)\n💡 One concrete improvement suggestion"}],
+      "You are an expert AI safety and prompt engineering reviewer. Be direct and practical."
+    );
+    set({reviewing:false,review:r});
+  }catch(e){set({reviewing:false,review:"⚠️ "+e.message});}
+}
+
+function applyLast(){
+  var last=null;
+  for(var i=S.chat.length-1;i>=0;i--){if(S.chat[i].role==="assistant"){last=S.chat[i];break;}}
+  if(!last)return;
+  var num=prompt("Apply AI response to which field?\n\n"+FIELDS.map(function(f,i){return (i+1)+". "+f.label;}).join("\n")+"\n\nEnter number (1-7):");
+  var idx=parseInt(num)-1;
+  if(idx>=0&&idx<FIELDS.length){
+    var nf=Object.assign({},S.fields);
+    nf[FIELDS[idx].key]=last.content.trim();
+    set({fields:nf});
+  }
+}
+
+function copy(){
+  var out=buildOutput(S.fields);
+  if(!out)return;
+  var missing=FIELDS.filter(function(f){return f.required&&!S.fields[f.key].trim();}).map(function(f){return f.label;});
+  if(missing.length){alert("⚠️ Please fill in the required fields first:\n\n"+missing.map(function(l){return "• "+l;}).join("\n"));return;}
+  navigator.clipboard.writeText(out).then(function(){set({copied:true});setTimeout(function(){set({copied:false});},2000);});
+}
+
+function showToast(msg){
+  var t=document.createElement("div");
+  t.className="toast";
+  t.innerHTML='<i class="fa-solid fa-check" style="margin-right:7px;"></i>'+msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity="0";t.style.transition="opacity 0.3s";setTimeout(function(){t.remove();},300);},2500);
+}
+
+function launchAI(clientId){
+  var out=buildOutput(S.fields);
+  if(!out){alert("⚠️ Fill in at least one field before launching.");return;}
+  var client=AI_CLIENTS.find(function(c){return c.id===clientId;});
+  navigator.clipboard.writeText(out).then(function(){
+    showToast("Copied! Paste into "+client.label+"'s prompt window.");
+    setTimeout(function(){window.open(client.url,"_blank");},300);
+  }).catch(function(){
+    window.open(client.url,"_blank");
+    alert("Clipboard blocked. Please copy manually and paste into "+client.label+".");
+  });
+}
+
+function toggleEthics(id){
+  var ne=Object.assign({},S.ethics);
+  ne[id]=!ne[id];
+  set({ethics:ne});
+}
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+function draw(){
+  var fields=S.fields,ethics=S.ethics,chat=S.chat,mode=S.mode,input=S.input;
+  var busy=S.busy,review=S.review,reviewing=S.reviewing,copied=S.copied,aiOpen=S.aiOpen,ethicsOpen=S.ethicsOpen;
+  var filled=Object.values(fields).filter(function(v){return v.trim();}).length;
+  var reqFilled=FIELDS.filter(function(f){return f.required&&fields[f.key].trim();}).length;
+  var ethicsCount=Object.values(ethics).filter(Boolean).length;
+  var output=buildOutput(fields);
+  var lastAI=null;
+  for(var i=chat.length-1;i>=0;i--){if(chat[i].role==="assistant"){lastAI=chat[i];break;}}
+
+  var html='<div class="app">';
+
+  // Copyright bar
+  html+='<div class="copyright-bar"><span><i class="fa-regular fa-copyright" style="margin-right:5px;"></i>2025 <strong style="color:var(--accent);">DXS</strong> &nbsp;·&nbsp; <a href="mailto:todxs2010@gmail.com" style="color:var(--accent2);text-decoration:none;font-weight:600;">todxs2010@gmail.com</a> &nbsp;·&nbsp; All rights reserved.</span></div>';
+
+  // Topbar
+  html+='<div class="topbar"><div class="topbar-left"><span style="font-size:16px;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px;"><i class="fa-solid fa-file-lines" style="color:var(--accent);margin-right:9px;"></i>Instructions</span></div><div class="topbar-right"><div class="progress-pill"><svg width="20" height="20" style="transform:rotate(-90deg);flex-shrink:0;"><circle cx="10" cy="10" r="8" fill="none" stroke="#2a3d6e" stroke-width="3"/><circle cx="10" cy="10" r="8" fill="none" stroke="#ffc040" stroke-width="3" stroke-dasharray="'+(filled/7*50.27)+' 50.27" stroke-linecap="round" style="transition:stroke-dasharray 0.4s;"/></svg><span>'+filled+'/7 complete</span></div></div></div>';
+
+  // Main
+  html+='<div class="main"><div class="form-panel">';
+
+  // Fields
+  FIELDS.forEach(function(f){
+    var val=fields[f.key];
+    var borderStyle=f.required&&!val.trim()?'border-left:3px solid var(--red);':val.trim()?'border-left:3px solid var(--green);':'';
+    html+='<div class="field-card">';
+    html+='<div class="field-header"><div class="field-label-wrap"><div class="field-icon-wrap"><i class="'+f.fa+'"></i></div><div><div class="field-label">'+f.label+(f.required?'<span class="req-badge"><i class="fa-solid fa-star" style="font-size:9px;margin-right:3px;"></i>Required</span>':'<span class="opt-badge">Optional</span>')+'</div><div class="field-hint">'+f.hint+'</div></div></div></div>';
+    html+='<textarea id="ta-'+f.key+'" rows="2" placeholder="'+f.ph+'" onblur="(function(){var nf=Object.assign({},S.fields);nf[\''+f.key+'\']=this.value;set({fields:nf});}).call(this)" style="'+borderStyle+'">'+esc(val)+'</textarea>';
+    html+='</div>';
+  });
+
+  // Launchers
+  html+='<div class="launchers">';
+  AI_CLIENTS.forEach(function(c){
+    html+='<button class="launch-btn" onclick="launchAI(\''+c.id+'\')" title="Copy &amp; open '+c.label+'"><img src="'+c.icon+'" alt="'+c.label+'" onerror="this.style.display=\'none\'"/> '+c.label+' <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;opacity:0.6;"></i></button>';
+  });
+  html+='</div>';
+
+  // Output
+  html+='<div class="output-card"><div class="output-header"><span class="output-label"><i class="fa-solid fa-file-code"></i> Live Output</span><button class="copy-btn'+(copied?' done':'')+'" onclick="copy()"><i class="fa-solid '+(copied?'fa-check':'fa-copy')+'"></i> '+(copied?'Copied':'Copy to Clipboard')+'</button></div><div class="output-pre'+(output?'':' empty')+'">'+( output?esc(output):'Your system instruction will appear here as you fill in the fields above…')+'</div></div>';
+
+  html+='</div>'; // /form-panel
+
+  // AI panel
+
+
+  html+='</div>'; // /main
+
+  // Bottom bar
+  html+='<div class="bottombar"><button class="ethics-trigger" onclick="set({ethicsOpen:true})"><i class="fa-solid fa-shield-halved"></i> Ethics Check <span class="score'+(ethicsCount===6?' full':'')+'">'+ethicsCount+'/6</span></button><span class="bottombar-hint">'+(ethicsCount===6?'✅ All checks passed':'Click to review ethics')+'</span></div>';
+
+  // Ethics Modal
+  if(ethicsOpen){
+    html+='<div class="modal-overlay" onclick="if(event.target===this)set({ethicsOpen:false})">';
+    html+='<div class="modal">';
+    html+='<div class="modal-header"><div class="modal-title"><i class="fa-solid fa-shield-halved"></i> Ethics Checklist</div><button class="modal-close" onclick="set({ethicsOpen:false})"><i class="fa-solid fa-xmark"></i> Close</button></div>';
+    html+='<div class="ethics-grid">';
+    ETHICS.forEach(function(e){
+      var done=!!ethics[e.id];
+      html+='<div class="ethics-item'+(done?' done':'')+'" onclick="toggleEthics(\''+e.id+'\')">';
+      html+='<div class="ethics-item-icon"><i class="'+e.fa+'"></i></div>';
+      html+='<span class="ethics-item-label">'+e.label+'</span>';
+      html+='<div class="ethics-check">'+(done?'<i class="fa-solid fa-check" style="font-size:10px;color:#0f1a2e;"></i>':'')+'</div>';
+      html+='</div>';
+    });
+    html+='</div>';
+    html+='<div class="modal-progress"><div class="modal-progress-bar"><div class="modal-progress-fill" style="width:'+(ethicsCount/6*100)+'%"></div></div><span class="modal-progress-label">'+ethicsCount+'/6 '+(ethicsCount===6?'✅ All passed':ethicsCount>=4?'🟡 Almost there':'🔴 Needs review')+'</span></div>';
+    html+='</div></div>'; // /modal /overlay
+  }
+
+  html+='</div>'; // /app
+  document.getElementById("root").innerHTML=html;
+
+  var cb=document.getElementById("chatBody");
+  if(cb)cb.scrollTop=cb.scrollHeight;
+}
+
+draw();
+</script>
+</body>
+</html>
