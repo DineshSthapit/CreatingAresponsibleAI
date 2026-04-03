@@ -174,6 +174,37 @@ textarea::placeholder{color:var(--text-faint);font-size:14px;}
   .mobile-toggle{display:flex!important;}
   .launchers{flex-wrap:wrap;}
 }
+
+/* --- Voice / Mic styles --- */
+.ta-wrap{position:relative;}
+.mic-btn{
+  position:absolute;bottom:8px;right:8px;
+  background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text-muted);border-radius:50%;
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:13px;
+  transition:all 0.2s;z-index:5;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+.mic-btn:hover{background:var(--surface3);color:var(--accent2);border-color:var(--accent2);transform:scale(1.08);}
+.mic-btn.listening{
+  background:rgba(255,112,112,0.18);
+  color:var(--red);border-color:var(--red);
+  animation:micPulse 1s infinite;
+}
+@keyframes micPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,112,112,0.4);}
+  50%{box-shadow:0 0 0 7px rgba(255,112,112,0);}
+}
+.mic-unsupported{opacity:0.35;cursor:not-allowed;}
+.mic-status-bar{
+  font-size:11px;color:var(--red);
+  padding:4px 14px 6px;display:none;align-items:center;gap:6px;
+  animation:fadeIn 0.2s ease;
+}
+.mic-status-bar.show{display:flex;}
+.mic-dot{width:6px;height:6px;background:var(--red);border-radius:50%;animation:micPulse 1s infinite;}
 </style>
 </head>
 <body>
@@ -321,6 +352,65 @@ function toggleEthics(id){
 
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 
+/* ===== VOICE / SPEECH RECOGNITION ===== */
+var _SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+var _micRec = null;   // active SpeechRecognition instance
+var _micKey = null;   // which field (or "chat") is currently listening
+
+function _stopMic(){
+  if(_micRec){try{_micRec.abort();}catch(e){} _micRec=null;}
+  _micKey=null;
+  // remove all listening classes
+  document.querySelectorAll(".mic-btn.listening").forEach(function(b){b.classList.remove("listening");});
+  document.querySelectorAll(".mic-status-bar.show").forEach(function(b){b.classList.remove("show");});
+}
+
+function startMic(key){
+  if(!_SR){
+    alert("Voice input is not supported in this browser.\nPlease use Google Chrome or Microsoft Edge.");
+    return;
+  }
+  // Toggle off if already listening to this field
+  if(_micKey===key){_stopMic();return;}
+  _stopMic();
+
+  _micKey=key;
+  _micRec=new _SR();
+  _micRec.continuous=false;
+  _micRec.interimResults=false;
+  _micRec.lang="en-US";
+
+  var btn=document.getElementById("mic-"+key);
+  var bar=document.getElementById("micbar-"+key);
+  if(btn){btn.classList.add("listening");btn.title="Click to stop recording";}
+  if(bar){bar.classList.add("show");}
+
+  _micRec.onresult=function(e){
+    var transcript=Array.from(e.results).map(function(r){return r[0].transcript;}).join(" ").trim();
+    if(!transcript)return;
+    var nf=Object.assign({},S.fields);
+    nf[key]=(nf[key]?nf[key].trimEnd()+" ":"")+transcript;
+    // Capitalise first letter if field was empty
+    if(!S.fields[key]&&nf[key])nf[key]=nf[key].charAt(0).toUpperCase()+nf[key].slice(1);
+    set({fields:nf});
+  };
+
+  _micRec.onerror=function(e){
+    var msg=e.error==="not-allowed"?"Microphone access was denied. Please allow mic in browser settings.":
+            e.error==="no-speech"?"No speech detected — try again.":
+            "Mic error: "+e.error;
+    if(e.error!=="no-speech")showToast("🎤 "+msg);
+    _stopMic();
+  };
+
+  _micRec.onend=function(){
+    _stopMic();
+  };
+
+  try{_micRec.start();}catch(err){_stopMic();}
+}
+/* ===== END VOICE ===== */
+
 function draw(){
   var fields=S.fields,ethics=S.ethics,chat=S.chat,mode=S.mode,input=S.input;
   var busy=S.busy,review=S.review,reviewing=S.reviewing,copied=S.copied,aiOpen=S.aiOpen,ethicsOpen=S.ethicsOpen;
@@ -348,7 +438,11 @@ function draw(){
     var borderStyle=f.required&&!val.trim()?'border-left:3px solid var(--red);':val.trim()?'border-left:3px solid var(--green);':'';
     html+='<div class="field-card">';
     html+='<div class="field-header"><div class="field-label-wrap"><div class="field-icon-wrap"><i class="'+f.fa+'"></i></div><div><div class="field-label">'+f.label+(f.required?'<span class="req-badge"><i class="fa-solid fa-star" style="font-size:9px;margin-right:3px;"></i>Required</span>':'<span class="opt-badge">Optional</span>')+'</div><div class="field-hint">'+f.hint+'</div></div></div></div>';
-    html+='<textarea id="ta-'+f.key+'" rows="2" placeholder="'+f.ph+'" onblur="(function(){var nf=Object.assign({},S.fields);nf[\''+f.key+'\']=this.value;set({fields:nf});}).call(this)" style="'+borderStyle+'">'+esc(val)+'</textarea>';
+    html+='<div class="ta-wrap">';
+    html+='<textarea id="ta-'+f.key+'" rows="2" placeholder="'+f.ph+'" onblur="(function(){var nf=Object.assign({},S.fields);nf[\''+f.key+'\']=this.value;set({fields:nf});}).call(this)" style="'+borderStyle+';padding-right:46px;">'+esc(val)+'</textarea>';
+    html+='<button class="mic-btn'+(_SR?'':' mic-unsupported')+'" id="mic-'+f.key+'" onclick="startMic(\''+f.key+'\')" title="Click to speak — voice input"><i class="fa-solid fa-microphone"></i></button>';
+    html+='</div>';
+    html+='<div class="mic-status-bar" id="micbar-'+f.key+'"><span class="mic-dot"></span>Listening… speak now, then pause to finish.</div>';
     html+='</div>';
   });
 
